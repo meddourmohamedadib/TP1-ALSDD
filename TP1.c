@@ -191,9 +191,8 @@ Node * ParaToStruct(FILE *file) {
     char line[1024];
     char* word;
     char *tab;
-    while ( line !=("\n")) {
-        fgets(line, sizeof(line), file);
-        if(line == "\n"){
+    do {
+        if(fgets(line, sizeof(line), file) == NULL || strcmp(line, "\n") == 0){
             return head;
         }
         word = strtok(line, " \t\n");
@@ -208,44 +207,42 @@ Node * ParaToStruct(FILE *file) {
             }
         }
         
-    }
+    } while (strcmp(line, "\n") != 0);
     return head;
 }
 //--------------------------------------------------------------
 
-void FileToStruct(FILE *file,tabty Filetab[]) {
-    //FNode *p=*head;
-     int i = 0;
+void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variable passage
+    tabty *tmp;
     do {
-        /*if(p==*head){
-        p=malloc(sizeof(FNode));
-        *head=p;
-        }
-        else{
-            p->address=malloc(sizeof(FNode));
-        }*/
-        //*FileTab = realloc(*FileTab,((*size)+1)*sizeof(Node *));
-        Filetab[i] = ParaToStruct(file);
-        i++;
-    } while (!feof(file) && i < 3); 
+        *Filetab = realloc(*Filetab,((*size)+1)*sizeof(Node *));
+        tmp = (*Filetab) + (*size) - 1;
+        *tmp = ParaToStruct(file);
+        (*size)++;
+    } while (!feof(file)); 
 }
 
 //************************************************************************************
 
 int main () {
-    tabty  Filetab[3];
-    int size = 3;
+    tabty *Filetab;
+    Filetab = malloc(sizeof(tabty));
+    int size = 1;
     char filename[10] = "file1.txt";
     FILE *f = fopen(filename, "r");
     if (f == NULL) { return 1; }
-    FileToStruct(f, Filetab);
+    FileToStruct(f, &Filetab, &size);
     fclose(f);
     // printing
     int i;
-    for(i=0;i<size;i++)
-    { 
-        printTree(Filetab[i]->tree, "", 0);
-        printf("\n--------------------------------------------------------------\n");
+    tabty p;
+    for(i=0;i<size;i++) {
+        p = Filetab[i];
+        while(p != NULL) {
+            printTree(p->tree, "", 0);
+            printf("\n--------------------------------------------------------------\n");
+            p = Next(p);
+        }
     }
     return 0;
 }
