@@ -4,11 +4,6 @@
 #include <ctype.h>
 #include "libtp1.h"
 
-typedef struct FNode
-{
-    Node *Para;
-    struct FNode * address;
-}FNode;
 //---------------------------------------
 typedef Node*  tabty ; 
 
@@ -111,18 +106,13 @@ void Allocate(Node **p, char *word) {
 void InsertInBST(TRNode *root,char* val) {
     TRNode *p = root;
     TRNode *prev = root;
-    while (p != NULL) {
-        if(_stricmp(TreeValue(p),val)==0){
-            return;
+    while (p != NULL) {      
+        prev = p;
+        if (_stricmp(TreeValue(p),val)>0) {
+            p = LC(p);
         }
         else {
-            prev = p;
-            if (_stricmp(TreeValue(p),val)>0) {
-                p = LC(p);
-            }
-            else {
-                p = RC(p);
-            }
+            p = RC(p);
         }
     }
     if (_stricmp(TreeValue(prev),val)>0) {
@@ -165,7 +155,7 @@ void InsertInLL(Node **head,char *string){
     while((p!=NULL)&&(Value(p) <= toupper(string[0]))){
         prev=p;
         if((toupper(string[0]))==Value(p)){
-            InsertInBST(p->tree,string) ;
+            InsertInBST(p->tree,string) ;                       //8888888888888888888888888
             return;
         }
         p=Next(p);
@@ -214,12 +204,51 @@ Node * ParaToStruct(FILE *file) {
 
 void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variable passage
     tabty *tmp;
+    tabty tmp2;
     do {
         *Filetab = realloc(*Filetab,((*size)+1)*sizeof(Node *));
-        tmp = (*Filetab) + (*size) - 1;
-        *tmp = ParaToStruct(file);
-        (*size)++;
+        tmp2 = ParaToStruct(file);
+        if (tmp2 != NULL) {
+            tmp = (*Filetab) + (*size);
+            *tmp = tmp2;
+            (*size)++;
+        }
     } while (!feof(file)); 
+}
+
+//--------------------------------------------------------------
+
+bool SearchInPara(Node *para, char *word) {
+    Node *q = para;
+    TRNode *p;
+    while (q != NULL && toupper(word[0]) <= Value(q)) {
+        if ( toupper(word[0]) == Value(q)) {
+            TRNode *p = q->tree;
+            while (p != NULL) { 
+                if (_stricmp(TreeValue(p),word) == 0) {
+                    return true;
+                }   
+                else {
+                    if (_stricmp(TreeValue(p),word)>0) {
+                        p = LC(p);
+                    }
+                    else {
+                        p = RC(p);
+                    }
+                }  
+            }
+        }
+        q = Next(q);
+    }
+    return false;
+}
+
+//--------------------------------------------------------------
+
+Node* Union2para(Node * para1, Node * para2) {
+    Node * head;
+    
+    return head;
 }
 
 //************************************************************************************
@@ -227,7 +256,7 @@ void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variabl
 int main () {
     tabty *Filetab;
     Filetab = malloc(sizeof(tabty));
-    int size = 1;
+    int size = 0;
     char filename[10] = "file1.txt";
     FILE *f = fopen(filename, "r");
     if (f == NULL) { return 1; }
@@ -236,6 +265,9 @@ int main () {
     // printing
     int i;
     tabty p;
+        printf("\ncheck\n");
+    printf("\nsize = %d\n", size);
+
     for(i=0;i<size;i++) {
         p = Filetab[i];
         while(p != NULL) {
@@ -243,6 +275,15 @@ int main () {
             printf("\n--------------------------------------------------------------\n");
             p = Next(p);
         }
+        printf("\n ******** \n");
     }
+    printf("\ncheck\n");
+    if (SearchInPara(Filetab[0], "anes") == 1) {
+        printf("exist !");
+    }
+    else {
+        printf("doesn't exist");
+    }
+    printf("\ncheck\n");
     return 0;
 }

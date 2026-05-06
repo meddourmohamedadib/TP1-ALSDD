@@ -1,6 +1,7 @@
 #ifndef LIBTP1
 #define LIBTP1
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
