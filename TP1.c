@@ -7,103 +7,32 @@
 //---------------------------------------
 typedef Node*  tabty ; 
 
-/*//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+typedef struct
+{
+    int size;
+    tabty *Filetab;
+} Afile;
 
-typedef struct TRNode {
-    struct TRNode *right;
-    char *string;
-    struct TRNode *left;
-}TRNode;
+#include <string.h>
+#include <ctype.h>
 
-//-----------------------
-
-typedef struct Node {
-    char value;
-    struct Node *address; 
-    struct TRNode *tree; 
-} Node;
-
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-void Ass_val(Node *p, char val) {
-    p->value = val;
+char *NoPunctWord(char *word) {         //it still has a prob
+    int i = 0, j = 0;
+     printf("\nchech\n");
+    while (word[i] != '\0') {
+         printf("\nchech\n");
+        if (isalnum((unsigned char)word[i]) == true) {
+            word[j++] = word[i];
+        }
+        i++;
+    }
+     printf("\nchech\n");
+    word[j] = '\0';
+    printf("\nchech\n");
+    return word;
 }
 
-//--------------------------------------------------
-
-void Ass_adr(Node *p, Node *add) {
-    p->address = add;
-}
-
-//--------------------------------------------------
-
-Node *Next(Node *p) {
-    return (p->address);
-}
-
-//--------------------------------------------------
-
-char Value(Node *p) {
-    return (p->value);
-}
-
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-==-=-=-=-=-=-=-=-
-
-void TRNodeAlloc(TRNode **p) {
-    *p = (TRNode *)malloc(sizeof(TRNode));
-    (*p)->right = NULL;
-    (*p)->left = NULL;
-}
-
-//--------------------------------------------------
-
-char *TreeValue(TRNode *p) {
-    return p->string;
-}
-
-//--------------------------------------------------
-
-TRNode * LC(TRNode *head) {
-    return head->left;
-}
-
-//--------------------------------------------------
-
-TRNode * RC(TRNode *head) {
-    return head->right;
-}
-
-//--------------------------------------------------
-
-void AssTreeVal(TRNode *head, char *val) {
-    head->string = val;
-}
-
-//--------------------------------------------------
-
-void Ass_LC(TRNode *head, TRNode *child) {
-    head->left = child;
-}
-
-//--------------------------------------------------
-
-void Ass_RC(TRNode *head, TRNode *child) {
-    head->right = child;
-}
-
-//--------------------------------------------------
-
-void Allocate(Node **p, char *word) {
-    *p = (Node *)malloc(sizeof(Node));
-    Ass_val(*p,toupper(word[0]));
-    Ass_adr(*p, NULL);
-    TRNodeAlloc(&((*p)->tree));
-    AssTreeVal(((*p)->tree), word);
-}
-
-//--------------------------------------------------*/
-
-void InsertInBST(TRNode *root,char* val) {
+/*void InsertInBST(TRNode *root,char* val) {
     TRNode *p = root;
     TRNode *prev = root;
     while (p != NULL) {      
@@ -113,6 +42,37 @@ void InsertInBST(TRNode *root,char* val) {
         }
         else {
             p = RC(p);
+        }
+    }
+    if (_stricmp(TreeValue(prev),val)>0) {
+        TRNodeAlloc(&p);
+        Ass_LC(prev, p);
+        AssTreeVal(p, val);
+    }
+    else {
+        TRNodeAlloc(&p);
+        Ass_RC(prev, p);
+        AssTreeVal(p, val);
+    }
+}*/
+
+//--------------------------------------------------------------------------------------------------
+
+void InsertInBST(TRNode *root,char* val) {
+    TRNode *p = root;
+    TRNode *prev = root;
+    while (p != NULL) {
+        if(_stricmp(TreeValue(p),val)==0){
+            return;
+        }
+        else {
+            prev = p;
+            if (_stricmp(TreeValue(p),val)>0) {
+                p = LC(p);
+            }
+            else {
+                p = RC(p);
+            }
         }
     }
     if (_stricmp(TreeValue(prev),val)>0) {
@@ -153,6 +113,7 @@ void InsertInLL(Node **head,char *string){
         return;
     }
     while((p!=NULL)&&(Value(p) <= toupper(string[0]))){
+        
         prev=p;
         if((toupper(string[0]))==Value(p)){
             InsertInBST(p->tree,string) ;                       //8888888888888888888888888
@@ -221,7 +182,7 @@ void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variabl
 bool SearchInPara(Node *para, char *word) {
     Node *q = para;
     TRNode *p;
-    while (q != NULL && toupper(word[0]) <= Value(q)) {
+    while (q != NULL && toupper(word[0]) >= Value(q)) {
         if ( toupper(word[0]) == Value(q)) {
             TRNode *p = q->tree;
             while (p != NULL) { 
@@ -245,29 +206,53 @@ bool SearchInPara(Node *para, char *word) {
 
 //--------------------------------------------------------------
 
-Node* Union2para(Node * para1, Node * para2) {
-    Node * head;
-    
-    return head;
+void UnionTrav_PreOrd(TRNode * Root, Node ** result) {      //used to do the union of a tree in a para struct with the result 
+    if (Root != NULL) {
+        if (SearchInPara(*result, TreeValue(Root)) == false) {
+            InsertInLL(result, TreeValue(Root));
+        }
+        UnionTrav_PreOrd(LC(Root), result);
+        UnionTrav_PreOrd(RC(Root), result);
+    }
 }
+
+//--------------------------------------------------------------
+
+void Union2Para(Node *struct1, Node **res){     //it do the union of the para "struct1" with the result
+    Node *p = struct1;
+    while(p != NULL){
+        UnionTrav_PreOrd(p->tree, res);
+        p = Next(p);
+    }
+}
+
+//--------------------------------------------------------------
+
 
 //************************************************************************************
 
 int main () {
+    //Filetab Init
     tabty *Filetab;
     Filetab = malloc(sizeof(tabty));
     int size = 0;
+
+    //file config
     char filename[10] = "file1.txt";
     FILE *f = fopen(filename, "r");
     if (f == NULL) { return 1; }
+
     FileToStruct(f, &Filetab, &size);
     fclose(f);
+
+    //Union test
+    Node *Union = NULL;
+    Union2Para(Filetab[0], &Union);
+    Union2Para(Filetab[1], &Union);
+    //Union2Para(Filetab[0], &Union);
     // printing
     int i;
     tabty p;
-        printf("\ncheck\n");
-    printf("\nsize = %d\n", size);
-
     for(i=0;i<size;i++) {
         p = Filetab[i];
         while(p != NULL) {
@@ -275,15 +260,26 @@ int main () {
             printf("\n--------------------------------------------------------------\n");
             p = Next(p);
         }
-        printf("\n ******** \n");
+        printf("\n ************************************ \n");
     }
-    printf("\ncheck\n");
-    if (SearchInPara(Filetab[0], "anes") == 1) {
-        printf("exist !");
+    printf("\n\n The union is : \n");
+    p = Union;
+    while(p != NULL) {
+        printTree(p->tree, "", 0);
+        printf("\n--------------------------------------------------------------\n");
+        p = Next(p);
+    } 
+    
+    if (SearchInPara(Filetab[1], "yani") == true) {
+        printf("\n\nexits\n\n");
     }
     else {
-        printf("doesn't exist");
+        printf("\n\ndoesn't exit !\n\n");
     }
-    printf("\ncheck\n");
+    char* tmp="abd?ou.:";
+                    printf("\nchech\n");
+            printf("\n--------------------------------------------------------------\n");
+            printf("%s --> %s", tmp, NoPunctWord(tmp));
+             printf("\nchech\n");
     return 0;
 }
