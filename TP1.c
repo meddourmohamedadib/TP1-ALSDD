@@ -16,51 +16,43 @@ typedef struct
 #include <string.h>
 #include <ctype.h>
 
-char *NoPunctWord(char *word) {         //it still has a prob
+/*char *NoPunctWord(char *word) {
     int i = 0, j = 0;
-     printf("\nchech\n");
+    char tmp[strlen(word)];
+    strcpy(tmp, word);
     while (word[i] != '\0') {
-         printf("\nchech\n");
-        if (isalnum((unsigned char)word[i]) == true) {
-            word[j++] = word[i];
+        if (isalnum((unsigned char)word[i])) {
+            tmp[j++] = word[i];
         }
         i++;
     }
-     printf("\nchech\n");
-    word[j] = '\0';
-    printf("\nchech\n");
+    tmp[j] = '\0';
+    word = tmp;
+    return word;
+}*/
+
+char *NoPunctWord(char *word) {
+    int i = 0, j = 0;
+    char *tmp;
+    while (word[i] != '\0') {
+        if (isalnum((unsigned char)word[i])) {
+            tmp = word + j;
+            *tmp = word[i];
+            j++;
+        }
+        i++;
+    }
+    tmp = word +j;
+    *tmp = '\0';
     return word;
 }
-
-/*void InsertInBST(TRNode *root,char* val) {
-    TRNode *p = root;
-    TRNode *prev = root;
-    while (p != NULL) {      
-        prev = p;
-        if (_stricmp(TreeValue(p),val)>0) {
-            p = LC(p);
-        }
-        else {
-            p = RC(p);
-        }
-    }
-    if (_stricmp(TreeValue(prev),val)>0) {
-        TRNodeAlloc(&p);
-        Ass_LC(prev, p);
-        AssTreeVal(p, val);
-    }
-    else {
-        TRNodeAlloc(&p);
-        Ass_RC(prev, p);
-        AssTreeVal(p, val);
-    }
-}*/
 
 //--------------------------------------------------------------------------------------------------
 
 void InsertInBST(TRNode *root,char* val) {
     TRNode *p = root;
     TRNode *prev = root;
+    //val = NoPunctWord(val);
     while (p != NULL) {
         if(_stricmp(TreeValue(p),val)==0){
             return;
@@ -147,15 +139,14 @@ Node * ParaToStruct(FILE *file) {
             return head;
         }
         word = strtok(line, " \t\n");
-        tab=malloc(strlen(word)*sizeof(char));
-        strcpy(tab, word);
         while (word != NULL) {
-            InsertInLL(&head,tab);
-            word = strtok(NULL, " \t\n");
-            if (word != NULL) {
-                tab=malloc(strlen(word)*sizeof(char));
+            NoPunctWord(word);              // filter in-place
+            if (strlen(word) > 0) {         // skip pure-punctuation tokens
+                tab = malloc(strlen(word) + 1);
                 strcpy(tab, word);
+                InsertInLL(&head, tab);
             }
+            word = strtok(NULL, " \t\n");
         }
         
     } while (strcmp(line, "\n") != 0);
@@ -183,7 +174,7 @@ bool SearchInPara(Node *para, char *word) {
     Node *q = para;
     TRNode *p;
     while (q != NULL && toupper(word[0]) >= Value(q)) {
-        if ( toupper(word[0]) == Value(q)) {
+        if ( toupper(word[0]) == Value(q) && q->tree != NULL) {
             TRNode *p = q->tree;
             while (p != NULL) { 
                 if (_stricmp(TreeValue(p),word) == 0) {
@@ -229,6 +220,193 @@ void Union2Para(Node *struct1, Node **res){     //it do the union of the para "s
 //--------------------------------------------------------------
 
 
+
+
+void search_in_BST(TRNode** root, char* word,TRNode **n,TRNode **parent) {
+    *n=*root;
+    *parent=NULL;
+    while((*n)!=NULL){
+        if(_stricmp(TreeValue(*n),word)==0){
+            return;
+        }
+        *parent=*n;
+        if(_stricmp(TreeValue(*n),word)>0){
+           *n=LC(*n);
+        }
+        else{
+            *n=RC(*n);
+        }
+    }
+}
+
+
+
+void delete_from_BST(TRNode** root, char* word, Node *llhead){
+    TRNode* n=NULL;
+    TRNode* parent=NULL;
+    search_in_BST(root,word,&n,&parent);
+    if(n==NULL){
+        return;
+    }
+    if(LC(n)==NULL && RC(n)==NULL){
+        if(parent==NULL){
+            *root=NULL;
+            free(n);
+            llhead->tree = NULL;
+        }
+        else{
+            if(LC(parent)==(n)){
+                Ass_LC(parent, NULL);
+            }
+            else{
+                Ass_RC(parent, NULL);
+            }
+            free(n);
+        }
+    }
+    else{
+        if(LC(n)==NULL && RC(n)!=NULL){
+            if(parent==NULL){
+                *root=RC(n);
+                free(n);
+            }
+            else{
+                if(LC(parent)==(n)){
+                    Ass_LC(parent, RC(n));
+                }
+                else{
+                    Ass_RC(parent, RC(n));
+                }
+                free(n);
+            }
+        }
+        else {
+             if(LC(n)!=NULL && RC(n)==NULL){
+                if(parent==NULL){
+                    *root=LC(n);
+                    free(n);
+                }else{
+                    if(LC(parent)==(n)){
+                         Ass_LC(parent, LC(n));
+                    }else{
+                        Ass_RC(parent, LC(n));
+                    }
+                    free(n);
+                }
+
+            }
+            else {
+                TRNode* tmp = RC(n);
+                parent = n;
+                while(LC(tmp)!=NULL){
+                    parent=tmp;
+                    tmp=LC(tmp);
+                }
+                char *val = strdup(TreeValue(tmp));  
+                AssTreeVal(n, val);
+                if(tmp == RC(n)){
+                    Ass_RC(n,RC(tmp));
+                }else{
+                    Ass_LC(parent,RC(tmp));
+                }
+                free(tmp->string);
+                free(tmp);
+            }
+        }
+    }
+}
+
+    
+//--------------------------------------------------------------------------------------------------
+
+void DeleteByPtr(Node **h, Node * Ptr, Node *prev) {
+    Node *p,*q;
+    if (Ptr == *h) {
+        *h = Next(*h);
+    }
+    else {
+        Ass_adr(prev,Next(Ptr));
+    }
+    free(Ptr);
+}
+
+//--------------------------------------------------------------------------------------------------
+
+void DeleteInPara(Node **para, char *word) {
+    Node *q = *para;
+    Node *prev = NULL;
+    while (q != NULL && toupper(word[0]) >= Value(q)) {
+        if ( toupper(word[0]) == Value(q)) {
+            delete_from_BST(&(q->tree), word, q);
+            // If BST is now empty, remove the LL node
+            if (q->tree == NULL) {
+                DeleteByPtr(para, q, prev);
+            }
+            break;
+        }
+        prev = q;
+        q = Next(q);
+    }
+}
+
+//--------------------------------------------------
+/*
+void interTrav_PreOrd(TRNode ** Root, Node * struct1, Node ** result) {      //used to do the intersection of a tree in a para struct with the result
+    if (*Root != NULL) {
+        if (SearchInPara(struct1, TreeValue(*Root)) == false) {
+            DeleteInPara(result, TreeValue(*Root));
+        }
+        if (*Root != NULL) {
+            interTrav_PreOrd(&((*Root)->left), struct1, result);
+            interTrav_PreOrd(&((*Root)->right), struct1, result);
+        }
+    }
+}
+
+//--------------------------------------
+
+void inter2Para(Node *struct1, Node **res){     //it do the intersection of the para "struct1" with the result
+    Node *p = *res;
+    while(p != NULL){
+        interTrav_PreOrd(&(p->tree), struct1, res);
+        p = Next(p);
+    }
+}*/
+
+
+//--------------------------------------------------------------------------------------------------
+
+
+
+// Helper: collect all strings from a BST into a char* array
+void collectWords(TRNode *root, char ***arr, int *size) {
+    if (root == NULL) return;
+    *arr = realloc(*arr, (*size + 1) * sizeof(char *));
+    (*arr)[(*size)++] = TreeValue(root);
+    collectWords(LC(root), arr, size);
+    collectWords(RC(root), arr, size);
+}
+
+void inter2Para(Node *struct1, Node **res) {
+    // Step 1: collect all words from res
+    char **words = NULL;
+    int size = 0;
+    Node *p = *res;
+    while (p != NULL) {
+        collectWords(p->tree, &words, &size);
+        p = Next(p);
+    }
+    // Step 2: delete from res anything not in struct1
+    for (int i = 0; i < size; i++) {
+        if (!SearchInPara(struct1, words[i])) {
+            DeleteInPara(res, words[i]);
+        }
+    }
+    free(words);
+}
+
+
+
 //************************************************************************************
 
 int main () {
@@ -244,15 +422,33 @@ int main () {
 
     FileToStruct(f, &Filetab, &size);
     fclose(f);
-
+    /*
     //Union test
     Node *Union = NULL;
     Union2Para(Filetab[0], &Union);
-    Union2Para(Filetab[1], &Union);
+    Union2Para(Filetab[1], &Union);*/
+    //--------------------------------
+    tabty p;
+    Node* intersection = NULL;
+    Union2Para(Filetab[0], &intersection);
+
+    printf("\n\n The first para is  is : \n");
+    p = intersection;
+    while(p != NULL) {
+        printTree(p->tree, "", 0);
+        printf("\n--------------------------------------------------------------\n");
+        p = Next(p);
+    }
+
+    inter2Para(Filetab[1], &intersection);
+
+
+    printf("\n\n\n//////////////////////////////////////////////////\n\n\n");
+
+
     //Union2Para(Filetab[0], &Union);
     // printing
     int i;
-    tabty p;
     for(i=0;i<size;i++) {
         p = Filetab[i];
         while(p != NULL) {
@@ -262,14 +458,14 @@ int main () {
         }
         printf("\n ************************************ \n");
     }
-    printf("\n\n The union is : \n");
-    p = Union;
+    printf("\n\n The intersection is : \n");
+    p = intersection;
     while(p != NULL) {
         printTree(p->tree, "", 0);
         printf("\n--------------------------------------------------------------\n");
         p = Next(p);
     } 
-    
+    /*
     if (SearchInPara(Filetab[1], "yani") == true) {
         printf("\n\nexits\n\n");
     }
@@ -277,9 +473,9 @@ int main () {
         printf("\n\ndoesn't exit !\n\n");
     }
     char* tmp="abd?ou.:";
-                    printf("\nchech\n");
-            printf("\n--------------------------------------------------------------\n");
-            printf("%s --> %s", tmp, NoPunctWord(tmp));
-             printf("\nchech\n");
+    printf("\nchech\n");
+    printf("\n--------------------------------------------------------------\n");
+    //printf("%s --> %s", tmp, NoPunctWord(tmp));
+    printf("\nchech\n");*/
     return 0;
 }

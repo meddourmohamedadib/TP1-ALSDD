@@ -1,15 +1,21 @@
-zinou yani is zinou.
-anes from anes. yani 
-yani adib
+Hello WORLD? This paragraph is another simple example.
+The quick brown fox jumps over a very lazy dog!
+Python programming is easy, but C programming is powerful.
+Data structures include graphs, trees, queues, and heaps.
+Numbers like 456 and 789 are present here too.
+Repeated words repeated again should still intersect correctly.
+Symbols such as @, $, %, and ! appear in this paragraph.
+Artificial intelligence and machine learning are changing the world.
+Common stopwords include the, on, is, and at.
+Mixedcase words should test case sensitivity differently.
 
-islam is good anes.
-yani adib yani yani 
-
-
-
-
-
-
-
-tifou rabi is ystrna mnou
-amine
+Hello world! This is a simple paragraph.
+The quick brown fox jumps over the lazy dog.
+C programming is powerful, fast, and efficient.
+Data structures include stacks, queues, trees, and linked-lists.
+Numbers like 123 and 456 should also be tested.
+Repeated repeated repeated words should appear once in a set.
+Symbols such as #, @, %, &, and * must be ignored or handled.
+Machine learning and artificial intelligence are transforming technology.
+Stopwords are words like the, is, at, on, and which.
+MixedCASE words SHOULD test Case Sensitivity.
