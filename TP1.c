@@ -2,50 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <windows.h>
+#include <conio.h>
 #include "libtp1.h"
-
-//---------------------------------------
-typedef Node*  tabty ; 
-
-typedef struct
-{
-    int size;
-    tabty *Filetab;
-} Afile;
-
-#include <string.h>
-#include <ctype.h>
-
-/*char *NoPunctWord(char *word) {
-    int i = 0, j = 0;
-    char tmp[strlen(word)];
-    strcpy(tmp, word);
-    while (word[i] != '\0') {
-        if (isalnum((unsigned char)word[i])) {
-            tmp[j++] = word[i];
-        }
-        i++;
-    }
-    tmp[j] = '\0';
-    word = tmp;
-    return word;
-}*/
-
-char *NoPunctWord(char *word) {
-    int i = 0, j = 0;
-    char *tmp;
-    while (word[i] != '\0') {
-        if (isalnum((unsigned char)word[i])) {
-            tmp = word + j;
-            *tmp = word[i];
-            j++;
-        }
-        i++;
-    }
-    tmp = word +j;
-    *tmp = '\0';
-    return word;
-}
 
 //--------------------------------------------------------------------------------------------------
 
@@ -129,34 +88,46 @@ void InsertInLL(Node **head,char *string){
 
 //--------------------------------------------------
 
-Node * ParaToStruct(FILE *file) {
+Node *ParaToStruct(FILE *file) {
     Node *head = NULL;
     char line[1024];
-    char* word;
-    char *tab;
-    do {
-        if(fgets(line, sizeof(line), file) == NULL || strcmp(line, "\n") == 0){
-            return head;
-        }
-        word = strtok(line, " \t\n");
+    char *word, *tab;
+
+    while (fgets(line, sizeof(line), file) != NULL) {
+        if (strcmp(line, "\n") == 0 || strcmp(line, "\r\n") == 0)
+            break;                          // blank line = end of paragraph
+        word = strtok(line, " \t\n\r");
         while (word != NULL) {
-            NoPunctWord(word);              // filter in-place
-            if (strlen(word) > 0) {         // skip pure-punctuation tokens
+            NoPunctWord(word);
+            if (strlen(word) > 0) {
                 tab = malloc(strlen(word) + 1);
                 strcpy(tab, word);
                 InsertInLL(&head, tab);
             }
-            word = strtok(NULL, " \t\n");
+            word = strtok(NULL, " \t\n\r");
         }
-        
-    } while (strcmp(line, "\n") != 0);
+    }
     return head;
+}
+
+void FileToStruct(FILE *file, Node* *Filetab[], int *size) {
+    Node *tmp2;
+    Node **tmp;
+    while (!feof(file)) {                   // check before reading
+        tmp2 = ParaToStruct(file);
+        if (tmp2 != NULL) {
+            *Filetab = realloc(*Filetab, (*size + 1) * sizeof(Node *));
+            tmp = (*Filetab) + (*size);
+            *tmp = tmp2;
+            (*size)++;
+        }
+    }
 }
 //--------------------------------------------------------------
 
-void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variable passage
-    tabty *tmp;
-    tabty tmp2;
+/*void FileToStruct(FILE *file,Node* *Filetab[], int *size) {      //needs variable passage
+    Node* *tmp;
+    Node* tmp2;
     do {
         *Filetab = realloc(*Filetab,((*size)+1)*sizeof(Node *));
         tmp2 = ParaToStruct(file);
@@ -166,7 +137,7 @@ void FileToStruct(FILE *file,tabty *Filetab[], int *size) {      //needs variabl
             (*size)++;
         }
     } while (!feof(file)); 
-}
+}*/
 
 //--------------------------------------------------------------
 
@@ -197,10 +168,11 @@ bool SearchInPara(Node *para, char *word) {
 
 //--------------------------------------------------------------
 
-void UnionTrav_PreOrd(TRNode * Root, Node ** result) {      //used to do the union of a tree in a para struct with the result 
+void UnionTrav_PreOrd(TRNode *Root, Node **result) {
     if (Root != NULL) {
-        if (SearchInPara(*result, TreeValue(Root)) == false) {
-            InsertInLL(result, TreeValue(Root));
+        if (!SearchInPara(*result, TreeValue(Root))) {
+            char *copy = strdup(TreeValue(Root));
+            InsertInLL(result, copy);
         }
         UnionTrav_PreOrd(LC(Root), result);
         UnionTrav_PreOrd(RC(Root), result);
@@ -218,6 +190,15 @@ void Union2Para(Node *struct1, Node **res){     //it do the union of the para "s
 }
 
 //--------------------------------------------------------------
+
+void UnionNPara(Apara *arr, int arrsize, Afile *TAB, Node **res) {
+    for (int i = 0; i< arrsize ; i++) {
+        Union2Para(TAB[arr[i].numfile-1].Filetab[arr[i].numpar-1], res);
+    }
+}
+
+//--------------------------------------------------------------
+
 
 
 
@@ -382,13 +363,12 @@ void inter2Para(Node *struct1, Node **res){     //it do the intersection of the 
 void collectWords(TRNode *root, char ***arr, int *size) {
     if (root == NULL) return;
     *arr = realloc(*arr, (*size + 1) * sizeof(char *));
-    (*arr)[(*size)++] = TreeValue(root);
+    (*arr)[(*size)++] = strdup(TreeValue(root));
     collectWords(LC(root), arr, size);
     collectWords(RC(root), arr, size);
 }
 
-void inter2Para(Node *struct1, Node **res) {
-    // Step 1: collect all words from res
+void Inter2Para(Node *struct1, Node **res) {
     char **words = NULL;
     int size = 0;
     Node *p = *res;
@@ -396,23 +376,366 @@ void inter2Para(Node *struct1, Node **res) {
         collectWords(p->tree, &words, &size);
         p = Next(p);
     }
-    // Step 2: delete from res anything not in struct1
     for (int i = 0; i < size; i++) {
         if (!SearchInPara(struct1, words[i])) {
             DeleteInPara(res, words[i]);
         }
+        free(words[i]);
     }
     free(words);
 }
+
+//--------------------------------------------------------------
+
+void InterNPara(Apara *arr, int arrsize, Afile *TAB, Node **res) {
+    Union2Para(TAB[arr[0].numfile-1].Filetab[arr[0].numpar-1], res);
+    for (int i = 1; i< arrsize ; i++) {
+        Inter2Para(TAB[arr[i].numfile-1].Filetab[arr[i].numpar-1], res);
+    }
+}
+
+//--------------------------------------------------------------
+
+void PrintTree_preord(TRNode * Root) {      //used to do the union of a tree in a para struct with the result 
+    if (Root != NULL) {
+        printf("%s | ", TreeValue(Root));
+        PrintTree_preord(LC(Root));
+        PrintTree_preord(RC(Root));
+    }
+}
+
+//--------------------------------------------------------------
+
+void PrintStruct(Node * struc){
+    Node *p = struc;
+    while (p != NULL) {
+        PrintTree_preord(p->tree);
+        printf("\n");
+        p = Next(p);
+    }
+}
+
+//--------------------------------------------------------------
+
 
 
 
 //************************************************************************************
 
+void Color(int text, int bg) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), bg * 16 + text);
+}
+
+/* ── 1. LOADING BAR ───────────────────────────────────────────── */
+void loading_bar() {
+    char *labels[] = {
+        "Initializing...              ",
+        "Loading memory allocator...  ",
+        "Building linked-list engine..",
+        "Loading BST module...        ",
+        "Reading paragraph structures.",
+        "Compiling set operations...  ",
+        "Finalizing...                ",
+        "Done.                        "
+    };
+    int pcts[] = {5, 20, 35, 50, 65, 80, 95, 100};
+    int total_bar = 50;
+    int i, j;
+
+    for (i = 0; i < 8; i++) {
+        system("cls");
+        Color(7, 0);
+        printf("\n\n\n\n\n\n\n\n\n");
+        printf("\t\t\t\t\t  LOADING\n\n");
+
+        int filled = (pcts[i] * total_bar) / 100;
+        printf("\t\t\t\t\t [");
+        Color(10, 0);
+        for (j = 0; j < filled; j++)  printf("|");
+        Color(8, 0);
+        for (j = filled; j < total_bar; j++) printf("-");
+        Color(7, 0);
+        printf("] %3d%%\n\n", pcts[i]);
+        printf("\t\t\t\t\t  %s\n", labels[i]);
+        Sleep(500);
+    }
+    Sleep(400);
+}
+
+/* ── 2. LANDING CARD ──────────────────────────────────────────── */
+void landing_card() {
+    system("cls");
+    printf("\n\n");
+    Color(3, 0);
+    printf("\t   /$$$$$$$$  /$$$$$$  /$$$$$$      \n");
+    printf("\t  | $$_____/ /$$__  $$|_  $$_/      \n");
+    printf("\t  | $$      | $$  \\__/  | $$        \n");
+    printf("\t  | $$$$$   |  $$$$$$   | $$        \n");
+    printf("\t  | $$__/    \\____  $$  | $$        \n");
+    printf("\t  | $$       /$$  \\ $$  | $$        \n");
+    printf("\t  | $$$$$$$$|  $$$$$$/ /$$$$$$      \n");
+    printf("\t  |________/ \\______/ |______/      \n");
+    printf("\t                                    \n");
+    printf("\t                                    \n");
+    printf("\t  Ecole nationale Superieure d'Informatique\n\n");
+
+    Color(7, 0);
+    printf("\t  ---------------------------------------------------------------\n");
+    printf("\t  |                                                             |\n");
+    printf("\t  |  Module    :  Algorithmics & Dynamic Data Structures        |\n");
+    printf("\t  |  Lab Work  :  TP1 - Set Theory on Linguistic Structures     |\n");
+    printf("\t  |                                                             |\n");
+    printf("\t  |  Member 01 :  GHILASSEN Abdelhalim                          |\n");
+    printf("\t  |  Member 02 :  MEDDOUR Mohamed Adib                          |\n");
+    printf("\t  |                                                             |\n");
+    printf("\t  |  Section   :  C          Group : 10                         |\n");
+    printf("\t  |  Year      :  2025 / 2026                                   |\n");
+    printf("\t  |                                                             |\n");
+    printf("\t  |  Supervised by : Mrs. CHADER Asma                           |\n");
+    printf("\t  |                                                             |\n");
+    printf("\t  ---------------------------------------------------------------\n\n");
+
+    Color(6, 0);
+    printf("\t\t\t     Press any key to continue . . .\n");
+    Color(7, 0);
+    getch();
+}
+
+/* ── MAIN ENTRY POINT ─────────────────────────────────────────── */
+void welcome() {
+    loading_bar();
+    landing_card();
+    system("cls");
+}
+
+//************************************************************************************
+
 int main () {
+
+    //.. declarations
+    char *menu[] = {
+        "   ------------------------------------",
+        "   |           - WELCOME -            |",
+        "   ------------------------------------",
+        "   1- Add Files                        ",
+        "      2- Choose the paragraphs         ",
+        "         3- Choose operation           ",
+        "            4- EXIT                    "
+    };
+    char *OPmenu[] = {
+        "   ------------------------------------",
+        "     -- Choose an operation :   ",
+        "   ------------------------------------",
+        "         1- Union                      ",
+        "           2- Intersection             ",
+        "             3- Difference             ",
+        "               4- Symetric Difference  ",
+        "                 5- Back to MENU       "
+    };
+    int i,j,choice,OPchoice;
+    int filesnum,parsnum;
+    Afile *TABf = NULL;
+    Apara *TABp = NULL;
+    FILE *file;
+    char* tmp_filename;
+    bool bool1=false,bool2=false;
+    Node *Uni = NULL;
+    Node *Inter = NULL;
+
+    
+
+    welcome();
+    do
+    {
+        do
+        {
+            system("cls");
+            for (i = 0; i < 7; i++) {
+                printf("\n%s", menu[i]);
+                Sleep(200);
+            }
+            printf("\n   Your Choice : ");
+            scanf("%d", &choice);
+            if (choice > 4 || choice < 1) {
+                system("cls");
+                printf("\n   Incorrect choice !");
+                Sleep(1000);
+            }
+        } while (choice > 4 || choice < 1);
+        switch (choice)
+        {
+        case 1:
+            do
+            {
+                system("cls");
+                printf("How many files you want to apply operations on ?\n");
+                printf("--> ");
+                scanf("%d", &filesnum);
+            } while (filesnum <= 0);
+            //TAB = malloc(sizeof(Afile));
+            printf("Enter the path of each file : \n");
+            for (i = 0; i < filesnum; i++) {
+                TABf = realloc(TABf, (i+1)*sizeof(Afile));
+                do
+                {   
+                    printf("--> ");
+                    scanf("%s", TABf[i].filename);
+                    file = fopen(TABf[i].filename, "r");
+                    if (file == NULL) {
+                        printf(" Can't open this file !! try again \n");
+                    }
+                } while (file == NULL);
+                TABf[i].Filetab = NULL;
+                TABf[i].size = 0;
+                FileToStruct(file, &(TABf[i].Filetab),&(TABf[i].size));
+                fclose(file);
+            }
+            bool1=true;
+            printf("\nDone !\n");
+            Sleep(1500);
+            break;
+        case 2:
+            if(bool1){
+                system("cls");
+                printf("how many paragraphes will you use :");
+                scanf("%d",&parsnum);
+                TABp = malloc(parsnum*sizeof(Apara));
+                for(i=0;i<parsnum;i++){
+                    system("cls");
+                    printf("i = %d\n", i);
+                    printf("\n\nthe files that you had entred are :\n\n");
+                    for(j=0;j < filesnum;j++){
+                        printf("%d --> %s\n",(j+1),TABf[j].filename);
+                    }
+                    if (i != 0) {
+                        printf("the paragraphs chosed : ");
+                        for (j = 0; j<i; j++){
+                            printf("(%d : %d) | ",TABp[j].numfile,TABp[j].numpar);
+                        }
+                        printf("\n");
+                    }
+                    do
+                    {
+                        printf("enter the file : ");
+                        scanf("%d",&TABp[i].numfile);
+                    } while (TABp[i].numfile <= 0 || TABp[i].numfile > filesnum);
+                    do
+                    {
+                        printf("enter the paragraph : ");
+                        scanf("%d",&TABp[i].numpar);
+                    } while (TABp[i].numpar <= 0 || TABp[i].numpar > TABf[(TABp[i].numfile)-1].size);
+                }
+                printf("the paragraphs chosed : ");
+                for (j = 0; j<i; j++){
+                    printf("(%d : %d) | ",TABp[j].numfile,TABp[j].numpar);
+                }
+                bool2 = true;
+                printf("\nDone !\n");
+            }
+            else{
+                printf("   you can't enter para befor files pleas do choice 1- Add files first");    
+            };
+            Sleep(2000);
+            break;
+        case 3:
+            if(bool1 && bool2){
+                do
+                {
+                    system("cls");
+                    for (i = 0; i < 8; i++) {
+                        printf("\n%s", OPmenu[i]);
+                        Sleep(200);
+                    }
+                    printf("\n   Your Choice : ");
+                    scanf("%d", &OPchoice);
+                    if (OPchoice > 5 || OPchoice < 1) {
+                        system("cls");
+                        printf("\n   Incorrect choice !");
+                        Sleep(1000);
+                    }
+                } while (OPchoice > 5 || OPchoice < 1);
+                switch (OPchoice)
+                {
+                case 1:
+                    UnionNPara(TABp,parsnum,TABf,&Uni);
+                    printf(" The result of the Union is : \n");
+                    PrintStruct(Uni);
+                    printf("\nDone !\n");
+                    Sleep(3000);
+                    break;
+                case 2:
+                    InterNPara(TABp, parsnum, TABf, &Inter);
+                    printf(" The result of the Intersection is : \n");
+                    PrintStruct(Inter);
+                    printf("\nDone !\n");
+                    Sleep(3000);
+                    break;
+                case 3:
+                    /* code */
+                    break;
+                case 4:
+                    /* code */
+                    break;
+                case 5:
+                    /* code */
+                    break;
+                default:
+                    break;
+                }
+            }
+            else {
+                printf("    You can't perform operations yet !\n     there is no data !\n");
+                Sleep(3000);
+            }
+        break;
+        case 4:
+            /* code */
+        break;
+        
+        default:
+            break;
+        }
+    } while (choice != 4);
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*
     //Filetab Init
-    tabty *Filetab;
-    Filetab = malloc(sizeof(tabty));
+    Node* *Filetab;
+    Filetab = malloc(sizeof(Node*));
     int size = 0;
 
     //file config
@@ -422,13 +745,12 @@ int main () {
 
     FileToStruct(f, &Filetab, &size);
     fclose(f);
-    /*
     //Union test
     Node *Union = NULL;
     Union2Para(Filetab[0], &Union);
-    Union2Para(Filetab[1], &Union);*/
+    Union2Para(Filetab[1], &Union);
     //--------------------------------
-    tabty p;
+    Node* p;
     Node* intersection = NULL;
     Union2Para(Filetab[0], &intersection);
 
@@ -465,7 +787,7 @@ int main () {
         printf("\n--------------------------------------------------------------\n");
         p = Next(p);
     } 
-    /*
+    
     if (SearchInPara(Filetab[1], "yani") == true) {
         printf("\n\nexits\n\n");
     }
